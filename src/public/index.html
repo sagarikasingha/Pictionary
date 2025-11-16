@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pictionary Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="menu" class="screen">
+        <h1>Pictionary Game</h1>
+        <div class="rules">
+            <h2>Game Rules</h2>
+            <ul>
+                <li>Players take turns drawing and guessing words</li>
+                <li>Correct guesser gets 100 points, drawer gets 50 points</li>
+                <li>Words get harder every 3 rounds</li>
+                <li>After 3 wrong guesses, you get a hint</li>
+                <li>Use 4-letter room codes to join games</li>
+            </ul>
+        </div>
+        <div class="menu-buttons">
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+            <button onclick="createRoom()">Create Room</button>
+            <div class="join-section">
+                <input type="text" id="roomCode" placeholder="Room Code" maxlength="4">
+                <button onclick="joinRoom()">Join Room</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lobby" class="screen hidden">
+        <h2>Room: <span id="currentRoomCode"></span></h2>
+        <div id="playersList"></div>
+        <button id="startBtn" onclick="startGame()" class="hidden">Start Game</button>
+        <button onclick="exitRoom()" class="exit-btn">Exit Room</button>
+    </div>
+
+    <div id="game" class="screen hidden">
+        <div class="game-header">
+            <div id="gameInfo">
+                <div>Round: <span id="roundNum">1</span></div>
+                <div id="timer" class="timer">⏱️ <span id="timeLeft">60</span>s</div>
+            </div>
+            <div id="scores"></div>
+            <button onclick="exitRoom()" class="exit-btn">Exit Room</button>
+        </div>
+        
+        <div class="game-content">
+            <div class="drawing-area">
+                <div class="canvas-controls">
+                    <div class="board-colors">
+                        <button onclick="changeBoardColor('white')" class="board-btn active">White</button>
+                        <button onclick="changeBoardColor('black')" class="board-btn">Black</button>
+                        <button onclick="changeBoardColor('green')" class="board-btn">Green</button>
+                    </div>
+                    <div class="color-palette">
+                        <div class="color" style="background: #000" onclick="changeColor('#000')"></div>
+                        <div class="color" style="background: #f00" onclick="changeColor('#f00')"></div>
+                        <div class="color" style="background: #0f0" onclick="changeColor('#0f0')"></div>
+                        <div class="color" style="background: #00f" onclick="changeColor('#00f')"></div>
+                        <div class="color" style="background: #ff0" onclick="changeColor('#ff0')"></div>
+                        <div class="color" style="background: #f0f" onclick="changeColor('#f0f')"></div>
+                        <div class="color" style="background: #0ff" onclick="changeColor('#0ff')"></div>
+                        <div class="color" style="background: #fff" onclick="changeColor('#fff')"></div>
+                    </div>
+                    <button onclick="clearCanvas()">Clear</button>
+                </div>
+                <canvas id="canvas" width="600" height="400"></canvas>
+            </div>
+            
+            <div class="game-sidebar">
+                <div id="wordDisplay" class="hidden">
+                    <h3>Your word:</h3>
+                    <div id="currentWord"></div>
+                </div>
+                
+                <div id="guessArea" class="hidden">
+                    <h3 id="drawerName">Waiting...</h3>
+                    <input type="text" id="guessInput" placeholder="Type your guess...">
+                    <button onclick="submitGuess()">Guess</button>
+                    <div id="hintDisplay" class="hidden"></div>
+                </div>
+                
+
+            </div>
+        </div>
+        
+        <div class="message hidden"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
