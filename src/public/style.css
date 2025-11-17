@@ -30,6 +30,8 @@ body {
     max-width: 1000px;
     width: 90%;
     animation: slideIn 0.5s ease-out;
+    position: relative;
+    z-index: 10;
 }
 
 @keyframes slideIn {
@@ -407,8 +409,191 @@ button:active {
     100% { transform: scale(1); opacity: 1; }
 }
 
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    padding: 50px 60px;
+    border-radius: 25px;
+    text-align: center;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+    animation: modalSlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    max-width: 500px;
+    border: 3px solid #667eea;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: scale(0.7) translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-icon {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 50px;
+    animation: iconBounce 0.6s ease-out;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+@keyframes iconBounce {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.1); }
+    50% { transform: scale(0.95); }
+    75% { transform: scale(1.05); }
+}
+
+.modal-icon::before {
+    content: '🎨';
+}
+
+#modalTitle {
+    font-size: 32px;
+    color: #667eea;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+#modalMessage {
+    font-size: 20px;
+    color: #555;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+#modalBtn {
+    padding: 16px 40px;
+    font-size: 18px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    cursor: pointer;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+}
+
+#modalBtn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.6);
+}
+
+#modalCountdown {
+    font-size: 60px;
+    font-weight: 900;
+    color: #667eea;
+    margin: 20px 0;
+    animation: countdownPulse 1s ease-in-out infinite;
+}
+
+@keyframes countdownPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.decorative-elements {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.floating-pencil, .floating-palette, .floating-star, .floating-brush {
+    position: absolute;
+    font-size: 40px;
+    opacity: 0.15;
+    animation: float 20s infinite ease-in-out;
+}
+
+.floating-pencil {
+    top: 10%;
+    left: 5%;
+    animation-delay: 0s;
+}
+
+.floating-palette {
+    top: 70%;
+    right: 10%;
+    animation-delay: 5s;
+}
+
+.floating-star {
+    top: 30%;
+    right: 15%;
+    animation-delay: 10s;
+}
+
+.floating-brush {
+    bottom: 20%;
+    left: 15%;
+    animation-delay: 15s;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-30px) rotate(5deg); }
+    50% { transform: translateY(-60px) rotate(-5deg); }
+    75% { transform: translateY(-30px) rotate(3deg); }
+}
+
+.screen-decoration {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 20px;
+    font-size: 35px;
+}
+
+.deco-item {
+    animation: bounce 2s infinite ease-in-out;
+}
+
+.deco-item:nth-child(1) { animation-delay: 0s; }
+.deco-item:nth-child(2) { animation-delay: 0.3s; }
+.deco-item:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
 @media (max-width: 768px) {
     .game-content { flex-direction: column; }
     #canvas { width: 100%; height: 300px; }
     .canvas-controls { justify-content: center; }
+    .modal-content { padding: 40px 30px; max-width: 90%; }
 }

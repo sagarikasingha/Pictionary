@@ -159,7 +159,6 @@ function submitGuess() {
     if (!guess) return;
     
     console.log('[CLIENT] Submitting guess:', guess, 'in room:', currentRoom);
-    console.log('[CLIENT] currentRoom value:', currentRoom, 'type:', typeof currentRoom);
     
     if (!currentRoom) {
         console.error('[CLIENT] ERROR: currentRoom is empty!');
@@ -172,6 +171,7 @@ function submitGuess() {
 }
 
 function showMessage(text, color = '#4CAF50') {
+    console.log('[CLIENT] Showing message:', text);
     const message = document.querySelector('.message');
     message.textContent = text;
     message.style.background = color;
@@ -229,7 +229,12 @@ socket.on('yourTurn', (data) => {
     document.getElementById('guessArea').classList.add('hidden');
     document.getElementById('hintDisplay').classList.add('hidden');
     showScreen('game');
-    showMessage('Your turn to draw!');
+    
+    if (data.waitingForAck) {
+        showTurnModal('Your Turn!', `Draw: "${data.word}"`);
+    } else {
+        showMessage('Your turn to draw!');
+    }
 });
 
 socket.on('waitingForDrawing', (data) => {
@@ -244,6 +249,10 @@ socket.on('waitingForDrawing', (data) => {
     document.getElementById('guessArea').classList.remove('hidden');
     document.getElementById('hintDisplay').classList.add('hidden');
     showScreen('game');
+    
+    if (data.waitingForAck) {
+        showTurnModal('Get Ready!', `${data.drawer} is drawing`);
+    }
 });
 
 socket.on('drawing', (data) => {
@@ -264,7 +273,7 @@ socket.on('drawing', (data) => {
 
 socket.on('correctGuess', (data) => {
     console.log('[CLIENT] Correct guess by', data.guesser);
-    alert(`🎉 ${data.guesser} wins! Guessed "${data.word}" correctly!\n\n🎨 Next turn: ${data.nextDrawer}`);
+    showAutoCloseModal(`🎉 ${data.guesser} Wins!`, `Guessed "${data.word}" correctly!\nNext turn: ${data.nextDrawer}`);
     updateScores(data.scores);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
@@ -279,6 +288,11 @@ socket.on('hint', (data) => {
     const hintDiv = document.getElementById('hintDisplay');
     hintDiv.innerHTML = `💡 Hint: The word has ${data.letters} letters`;
     hintDiv.classList.remove('hidden');
+});
+
+socket.on('closeGuess', (data) => {
+    console.log('[CLIENT] Close guess hint received:', data);
+    showMessage('🔥 You are close!', '#ff9800');
 });
 
 socket.on('playerLeft', (data) => {
@@ -312,6 +326,10 @@ socket.on('difficultyChange', (data) => {
     showMessage(`Difficulty changed to ${data.difficulty}!`, '#667eea');
 });
 
+socket.on('allPlayersReady', () => {
+    console.log('[CLIENT] All players ready, timer starting');
+});
+
 function updatePlayersList(players) {
     const list = document.getElementById('playersList');
     list.innerHTML = '<h3>Players:</h3>' + 
@@ -322,6 +340,44 @@ function updateScores(scores) {
     const scoresDiv = document.getElementById('scores');
     scoresDiv.innerHTML = '<strong>Scores:</strong> ' + 
         scores.map(s => `${s.name}: ${s.score}`).join(' | ');
+}
+
+function showTurnModal(title, message) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalMessage').textContent = message;
+    document.getElementById('modalBtn').style.display = 'none';
+    document.getElementById('modalCountdown').style.display = 'block';
+    document.getElementById('turnModal').classList.remove('hidden');
+    
+    let countdown = 3;
+    document.getElementById('modalCountdown').textContent = countdown;
+    
+    const countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+            document.getElementById('modalCountdown').textContent = countdown;
+        } else {
+            clearInterval(countdownInterval);
+            document.getElementById('turnModal').classList.add('hidden');
+            socket.emit('turnAcknowledged', currentRoom);
+        }
+    }, 1000);
+}
+
+function showAutoCloseModal(title, message) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalMessage').textContent = message;
+    document.getElementById('modalBtn').style.display = 'none';
+    document.getElementById('modalCountdown').style.display = 'none';
+    document.getElementById('turnModal').classList.remove('hidden');
+    setTimeout(() => {
+        document.getElementById('turnModal').classList.add('hidden');
+    }, 3000);
+}
+
+function closeTurnModal() {
+    document.getElementById('turnModal').classList.add('hidden');
+    socket.emit('turnAcknowledged', currentRoom);
 }
 
 // Enter key for guess input

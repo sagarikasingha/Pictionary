@@ -11,6 +11,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
 const words = require('./words');
+const turnAcknowledgments = new Map();
 
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -29,6 +30,21 @@ function getDifficulty(round) {
 
 function getRoundsSinceStart(room) {
   return Math.floor((room.currentDrawer + room.players.length * (room.round - 1)) / room.players.length);
+}
+
+function calculateSimilarity(guess, word) {
+  const g = guess.toLowerCase().trim();
+  const w = word.toLowerCase().trim();
+  
+  if (g.length === 0 || w.length === 0) return 0;
+  if (g.length !== w.length) return 0;
+  
+  let matches = 0;
+  for (let i = 0; i < g.length; i++) {
+    if (g[i] === w[i]) matches++;
+  }
+  
+  return (matches / w.length) * 100;
 }
 
 function startTimer(roomCode) {
@@ -62,22 +78,29 @@ function startTimer(roomCode) {
       }
       
       setTimeout(() => {
-        room.currentWord = getRandomWord(getDifficulty(room.round));
-        room.wrongGuesses.clear();
-        
-        const newDrawer = room.players[room.currentDrawer];
-        io.to(newDrawer.id).emit('yourTurn', { word: room.currentWord, round: room.round });
-        
-        room.players.forEach(p => {
-          if (p.id !== newDrawer.id) {
-            io.to(p.id).emit('waitingForDrawing', { drawer: newDrawer.name, round: room.round });
-          }
-        });
-        
-        startTimer(roomCode);
+        startNewTurn(roomCode);
       }, 3000);
     }
   }, 1000);
+}
+
+function startNewTurn(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room) return;
+  
+  room.currentWord = getRandomWord(getDifficulty(room.round));
+  room.wrongGuesses.clear();
+  
+  const newDrawer = room.players[room.currentDrawer];
+  turnAcknowledgments.set(roomCode, new Set());
+  
+  io.to(newDrawer.id).emit('yourTurn', { word: room.currentWord, round: room.round, waitingForAck: true });
+  
+  room.players.forEach(p => {
+    if (p.id !== newDrawer.id) {
+      io.to(p.id).emit('waitingForDrawing', { drawer: newDrawer.name, round: room.round, waitingForAck: true });
+    }
+  });
 }
 
 io.on('connection', (socket) => {
@@ -130,18 +153,23 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (room && room.players.length >= 2) {
       room.gameStarted = true;
-      room.currentWord = getRandomWord(getDifficulty(room.round));
-      room.wrongGuesses.clear();
-      
-      const drawer = room.players[room.currentDrawer];
-      io.to(drawer.id).emit('yourTurn', { word: room.currentWord, round: room.round });
-      
-      room.players.forEach(player => {
-        if (player.id !== drawer.id) {
-          io.to(player.id).emit('waitingForDrawing', { drawer: drawer.name, round: room.round });
-        }
-      });
-      
+      startNewTurn(roomCode);
+    }
+  });
+
+  socket.on('turnAcknowledged', (roomCode) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    
+    const acks = turnAcknowledgments.get(roomCode);
+    if (!acks) return;
+    
+    acks.add(socket.id);
+    console.log(`[ACK] Player acknowledged in room ${roomCode}. ${acks.size}/${room.players.length}`);
+    
+    if (acks.size === room.players.length) {
+      console.log(`[ACK] All players ready in room ${roomCode}. Starting timer.`);
+      io.to(roomCode).emit('allPlayersReady');
       startTimer(roomCode);
     }
   });
@@ -205,22 +233,13 @@ io.on('connection', (socket) => {
         nextDrawer: nextDrawer.name
       });
       
-      if (room.timer) clearInterval(room.timer);
+      if (room.timer) {
+        clearInterval(room.timer);
+        room.timer = null;
+      }
       
       setTimeout(() => {
-        room.currentWord = getRandomWord(getDifficulty(room.round));
-        room.wrongGuesses.clear();
-        
-        const newDrawer = room.players[room.currentDrawer];
-        io.to(newDrawer.id).emit('yourTurn', { word: room.currentWord, round: room.round });
-        
-        room.players.forEach(p => {
-          if (p.id !== newDrawer.id) {
-            io.to(p.id).emit('waitingForDrawing', { drawer: newDrawer.name, round: room.round });
-          }
-        });
-        
-        startTimer(roomCode);
+        startNewTurn(roomCode);
       }, 3000);
     } else {
       console.log(`[GUESS] WRONG! "${player.name}" guessed "${guess}" (correct: "${room.currentWord}")`);
@@ -228,13 +247,18 @@ io.on('connection', (socket) => {
       room.wrongGuesses.set(socket.id, wrongCount);
       console.log(`[GUESS] Wrong guess count for ${player.name}: ${wrongCount}`);
       
-      // Send wrong guess to drawer
       io.to(drawer.id).emit('wrongGuess', { guesser: player.name, guess });
-      console.log(`[GUESS] Sent wrong guess notification to drawer`);
+      
+      const similarity = calculateSimilarity(guess, room.currentWord);
+      console.log(`[SIMILARITY] Player: ${player.name}, Guess: "${guess}", Word: "${room.currentWord}", Match: ${similarity.toFixed(2)}%`);
+      
+      if (similarity >= 60) {
+        console.log(`[CLOSE_GUESS] Sending close guess hint to ${player.name} (${similarity.toFixed(2)}% match)`);
+        io.to(socket.id).emit('closeGuess', { similarity: Math.round(similarity) });
+      }
       
       if (wrongCount === 3) {
         io.to(socket.id).emit('hint', { letters: room.currentWord.length });
-        console.log(`[HINT] Sent hint to ${player.name}: ${room.currentWord.length} letters`);
       }
     }
   });

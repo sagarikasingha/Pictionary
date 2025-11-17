@@ -112,6 +112,3 @@ All documentation is in the `docs/` folder:
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
 - **Testing**: Playwright, Cucumber, Chai
 
-## 📝 License
-
-
