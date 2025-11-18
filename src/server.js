@@ -10,7 +10,7 @@ const io = socketIo(server);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
-const words = require('./words');
+const { words, wordHints } = require('./words');
 const turnAcknowledgments = new Map();
 
 function generateRoomCode() {
@@ -23,8 +23,8 @@ function getRandomWord(difficulty) {
 }
 
 function getDifficulty(round) {
-  if (round <= 3) return 'easy';
-  if (round <= 6) return 'medium';
+  if (round <= 5) return 'easy';
+  if (round <= 10) return 'medium';
   return 'hard';
 }
 
@@ -70,9 +70,9 @@ function startTimer(roomCode) {
       if (room.currentDrawer === 0) {
         room.round++;
         const completedRounds = room.round - 1;
-        if (completedRounds === 3) {
+        if (completedRounds === 5) {
           io.to(roomCode).emit('difficultyChange', { difficulty: 'medium', round: room.round });
-        } else if (completedRounds === 6) {
+        } else if (completedRounds === 10) {
           io.to(roomCode).emit('difficultyChange', { difficulty: 'hard', round: room.round });
         }
       }
@@ -94,7 +94,8 @@ function startNewTurn(roomCode) {
   const newDrawer = room.players[room.currentDrawer];
   turnAcknowledgments.set(roomCode, new Set());
   
-  io.to(newDrawer.id).emit('yourTurn', { word: room.currentWord, round: room.round, waitingForAck: true });
+  const hint = wordHints[room.currentWord] || 'Draw this object';
+  io.to(newDrawer.id).emit('yourTurn', { word: room.currentWord, hint: hint, round: room.round, waitingForAck: true });
   
   room.players.forEach(p => {
     if (p.id !== newDrawer.id) {
@@ -217,9 +218,9 @@ io.on('connection', (socket) => {
       if (room.currentDrawer === 0) {
         room.round++;
         const completedRounds = room.round - 1;
-        if (completedRounds === 3) {
+        if (completedRounds === 5) {
           io.to(roomCode).emit('difficultyChange', { difficulty: 'medium', round: room.round });
-        } else if (completedRounds === 6) {
+        } else if (completedRounds === 10) {
           io.to(roomCode).emit('difficultyChange', { difficulty: 'hard', round: room.round });
         }
       }
@@ -261,6 +262,44 @@ io.on('connection', (socket) => {
         io.to(socket.id).emit('hint', { letters: room.currentWord.length });
       }
     }
+  });
+
+  socket.on('passTurn', (roomCode) => {
+    console.log(`[PASS_TURN] Player passing turn in room ${roomCode}`);
+    const room = rooms.get(roomCode);
+    if (!room) return;
+
+    const player = room.players.find(p => p.id === socket.id);
+    const drawer = room.players[room.currentDrawer];
+    
+    if (!player || player.id !== drawer.id) {
+      console.log(`[PASS_TURN] Only drawer can pass`);
+      return;
+    }
+
+    console.log(`[PASS_TURN] ${player.name} passed their turn`);
+    
+    if (room.timer) {
+      clearInterval(room.timer);
+      room.timer = null;
+    }
+
+    io.to(roomCode).emit('playerPassed', { playerName: player.name });
+    
+    room.currentDrawer = (room.currentDrawer + 1) % room.players.length;
+    if (room.currentDrawer === 0) {
+      room.round++;
+      const completedRounds = room.round - 1;
+      if (completedRounds === 5) {
+        io.to(roomCode).emit('difficultyChange', { difficulty: 'medium', round: room.round });
+      } else if (completedRounds === 10) {
+        io.to(roomCode).emit('difficultyChange', { difficulty: 'hard', round: room.round });
+      }
+    }
+    
+    setTimeout(() => {
+      startNewTurn(roomCode);
+    }, 3000);
   });
 
   socket.on('exitRoom', (roomCode) => {

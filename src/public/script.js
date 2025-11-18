@@ -154,6 +154,13 @@ function clearCanvas() {
     });
 }
 
+function passTurn() {
+    if (!isMyTurn) return;
+    if (confirm('Are you sure you want to pass your turn?')) {
+        socket.emit('passTurn', currentRoom);
+    }
+}
+
 function submitGuess() {
     const guess = document.getElementById('guessInput').value.trim();
     if (!guess) return;
@@ -225,9 +232,19 @@ socket.on('yourTurn', (data) => {
     canvas.style.cursor = '';
     document.getElementById('roundNum').textContent = data.round;
     document.getElementById('currentWord').textContent = data.word;
+    
+    const hintDiv = document.getElementById('wordHint');
+    if (data.hint) {
+        hintDiv.textContent = '💡 ' + data.hint;
+        hintDiv.classList.remove('hidden');
+    } else {
+        hintDiv.classList.add('hidden');
+    }
+    
     document.getElementById('wordDisplay').classList.remove('hidden');
     document.getElementById('guessArea').classList.add('hidden');
     document.getElementById('hintDisplay').classList.add('hidden');
+    document.getElementById('passBtn').classList.remove('hidden');
     showScreen('game');
     
     if (data.waitingForAck) {
@@ -248,6 +265,7 @@ socket.on('waitingForDrawing', (data) => {
     document.getElementById('wordDisplay').classList.add('hidden');
     document.getElementById('guessArea').classList.remove('hidden');
     document.getElementById('hintDisplay').classList.add('hidden');
+    document.getElementById('passBtn').classList.add('hidden');
     showScreen('game');
     
     if (data.waitingForAck) {
@@ -328,6 +346,12 @@ socket.on('difficultyChange', (data) => {
 
 socket.on('allPlayersReady', () => {
     console.log('[CLIENT] All players ready, timer starting');
+});
+
+socket.on('playerPassed', (data) => {
+    console.log('[CLIENT] Player passed:', data.playerName);
+    showMessage(`${data.playerName} passed their turn`, '#ff9800');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
 function updatePlayersList(players) {
